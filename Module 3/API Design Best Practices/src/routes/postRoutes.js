@@ -1,11 +1,12 @@
-const express = require('express');
-const controller = require('../controllers/postController');
+import express from 'express';
+import * as postController from '../controllers/postsController.js'; // Adjust path if controller is named differently
 
 const router = express.Router();
 
-router.get('/getPosts', controller.listPosts);
-router.get('/getPost/:id', controller.getPost);
-router.post('/createPost', controller.createPost);
-router.post('/likePost/:id', controller.likePost);
+router.get('/posts', postController.getPosts);
+router.get('/posts/debug-error', postController.triggerDemoError);
+router.get('/posts/:id', postController.getPostById);
+router.post('/posts', postController.createPost);
+router.post('/posts/:id/likes', postController.likePost);
 
-module.exports = router;
+export default router;
