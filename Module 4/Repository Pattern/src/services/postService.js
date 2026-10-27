@@ -1,43 +1,39 @@
-const postStore = require('../data/postStore');
+import * as postRepo from '../repositories/postRepository.js';
 
-function listPosts() {
-  return postStore.posts;
+export async function getAllPosts() {
+  return postRepo.findAll();
 }
 
-function getPost(id) {
-  return postStore.posts.find((post) => post.id === Number(id)) || null;
-}
-
-function createPost(fields) {
-  if (!fields || !fields.title) {
-    const error = new Error('Title is required');
-    error.statusCode = 422;
+export async function getPostById(id) {
+  const post = postRepo.findById(id);
+  if (!post) {
+    const error = new Error('Post not found');
+    error.status = 404;
     throw error;
   }
-
-  const post = {
-    id: postStore.nextId(),
-    title: fields.title,
-    body: fields.body || '',
-    authorId: fields.authorId,
-  };
-  postStore.posts.push(post);
   return post;
 }
 
-function updatePost(id, patch) {
-  const post = getPost(id);
-  if (!post) return null;
-  if (patch.title !== undefined) post.title = patch.title;
-  if (patch.body !== undefined) post.body = patch.body;
-  return post;
+export async function createPost(data) {
+  return postRepo.create(data);
 }
 
-function removePost(id) {
-  const index = postStore.posts.findIndex((post) => post.id === Number(id));
-  if (index === -1) return false;
-  postStore.posts.splice(index, 1);
+export async function updatePost(id, patch) {
+  const updated = postRepo.update(id, patch);
+  if (!updated) {
+    const error = new Error('Post not found');
+    error.status = 404;
+    throw error;
+  }
+  return updated;
+}
+
+export async function deletePost(id) {
+  const removed = postRepo.remove(id);
+  if (!removed) {
+    const error = new Error('Post not found');
+    error.status = 404;
+    throw error;
+  }
   return true;
 }
-
-module.exports = { listPosts, getPost, createPost, updatePost, removePost };
