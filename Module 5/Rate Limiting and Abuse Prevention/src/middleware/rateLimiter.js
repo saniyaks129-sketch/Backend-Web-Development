@@ -1,26 +1,38 @@
-'use strict';
-// middleware/rateLimiter.js
-//
-// YOUR TASK: replace this pass-through with a real rate limiter.
-//
-// Right now this middleware lets EVERY request through, so the login route can be
-// brute-forced without limit. Build a strict limiter with `express-rate-limit`
-// (already in package.json) that is exported as the middleware used by the three
-// auth routes in src/routes/auth.js.
-//
-// Requirements (checked by the tests):
-//   - windowMs: 15 minutes
-//   - max: 5 attempts per window per IP
-//   - after the limit, respond with 429 and a `Retry-After` header
-//   - standardHeaders: true, legacyHeaders: false
-//   - (recommended) skipSuccessfulRequests: true so only FAILED attempts count
-//
-// Also add a COMMENT explaining how a Redis-backed store (rate-limit-redis) would
-// replace the default in-memory store in a multi-instance deployment, and why the
-// in-memory store is not enough when several instances run behind a load balancer.
-//
-// Hint: express-rate-limit returns a middleware function — export it directly:
-//   const rateLimit = require('express-rate-limit');
-//   module.exports = rateLimit({ ...options });
+import rateLimit from 'express-rate-limit';
 
-module.exports = (req, res, next) => next(); // TODO: replace this stub
+/**
+ * Multi-instance / Scale Explanation (Redis-backed Store):
+ * 
+ * The default MemoryStore keeps request counters in the Node process's local memory.
+ * In a production setup running multiple instances behind a load balancer, each instance
+ * maintains its own separate counter. An attacker could bypass limits by spreading requests
+ * across instances (e.g., 5 attempts per instance * 3 instances = 15 total allowed attempts).
+ * 
+ * In production, replace MemoryStore with a Redis-backed store (using `rate-limit-redis`).
+ * A RedisStore centralizes the rate limit counters into a shared Redis database that all
+ * application instances talk to, ensuring the true rate limit (5 attempts max total) is
+ * strictly enforced across the entire cluster regardless of horizontal scaling.
+ */
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes window
+  max: 5, // Limit each IP to 5 failed attempts per window
+  skipSuccessfulRequests: true, // Only count failed login/auth attempts
+  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+  handler: (req, res) => {
+    // Calculate seconds remaining for Retry-After header
+    const resetTime = req.rateLimit.resetTime;
+    const retryAfterSeconds = Math.ceil((resetTime.getTime() - Date.now()) / 1000);
+
+    res.setHeader('Retry-After', retryAfterSeconds > 0 ? retryAfterSeconds : 900);
+    return res.status(429).json({
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Too many failed authentication attempts. Please try again later.',
+      },
+    });
+  },
+});
+
+export default authLimiter;
