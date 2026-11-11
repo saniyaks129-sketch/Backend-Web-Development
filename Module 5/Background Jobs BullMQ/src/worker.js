@@ -1,13 +1,30 @@
-'use strict';
+import { Worker } from 'bullmq';
+import { transporter } from './email.js';
 
-// ─── YOUR FILE, implement this ───────────────────────────────────────────────
-// Create a BullMQ Worker that processes jobs from the 'email' queue.
-//
-// Requirements:
-//  1. Handle job.name === 'otp': send an email with the OTP using transporter.
-//  2. Configure retries: attempts: 3, backoff: { type: 'exponential', delay: 1000 }
-//  3. Log worker.on('completed') and worker.on('failed') events.
-//  4. Throwing inside the worker function → job fails → BullMQ retries.
-//     Returning without throwing → job completed.
+const connection = {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379', 10),
+};
 
-// TODO: implement
+export const emailWorker = new Worker(
+  'email',
+  async (job) => {
+    if (job.name === 'otp') {
+      await transporter.sendMail({
+        to: job.data.to,
+        subject: 'Your Verification Code',
+        text: `Your OTP is ${job.data.otp}`,
+      });
+    }
+  },
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 1000,
+      },
+    },
+  }
+);
