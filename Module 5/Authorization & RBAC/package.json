@@ -1,0 +1,12 @@
+{
+  "name": "authorization-rbac",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/run.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0"
+  }
+}
